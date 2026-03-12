@@ -65,7 +65,7 @@ intervals wellness put --date 2026-03-12 --file wellness.json
 
 ## Development
 
-The pinned OpenAPI source lives at [api/openapi-spec.json](/Users/jonaswide/dybo/intervals-cli/api/openapi-spec.json).
+The pinned OpenAPI source lives at [`api/openapi-spec.json`](api/openapi-spec.json).
 Generated code is emitted into `internal/api/gen`.
 
 Tests:
@@ -79,4 +79,3 @@ Optional smoke tests:
 ```bash
 go test -tags smoke ./...
 ```
-
