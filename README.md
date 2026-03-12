@@ -1,12 +1,10 @@
-# intervals
+# intervals.icu CLI - agent-first training data without breaking stride.
 
-`intervals` is an agent-first CLI for the public [Intervals.icu API](https://intervals.icu/api-docs.html).
+`intervals` is a lightweight CLI for the public [Intervals.icu API](https://intervals.icu/api-docs.html), built for AI agents.
 
-V1 goals:
-- generated transport/types from the published OpenAPI spec
-- hand-written command UX and output shaping
-- JSON-first automation contract with human-readable TTY output
-- non-interactive auth via `INTERVALS_ACCESS_TOKEN` or `INTERVALS_API_KEY`
+The main use case is letting tools like openclaw inspect training data, create workouts and events, and automate common Intervals workflows through command line and JSON-first output.
+
+Install it (or tell your agent to), set `INTERVALS_API_KEY`, and talk to your agent. 🏃‍♂️🚴‍♂️
 
 ## Install
 
@@ -14,47 +12,18 @@ Recommended: install from a GitHub Release with the installer script:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jonaswide/intervals-cli/master/scripts/install.sh | sh
-intervals --version
 ```
 
-Install a specific version:
+Manual fallback: download a prebuilt archive from [GitHub Releases](https://github.com/jonaswide/intervals-cli/releases), extract `intervals`, put it on `PATH`.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/jonaswide/intervals-cli/master/scripts/install.sh | VERSION=v0.1.0 sh
-```
-
-Install into a specific directory:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/jonaswide/intervals-cli/master/scripts/install.sh | INSTALL_DIR="$HOME/.local/bin" sh
-```
-
-Manual fallback: download a prebuilt archive from [GitHub Releases](https://github.com/jonaswide/intervals-cli/releases), extract `intervals`, put it on `PATH`, and verify with:
+Verify install:
 
 ```bash
 intervals --version
-```
-
-If you already have Go installed, you can install from source:
-
-```bash
-go install github.com/jonaswide/intervals-cli/cmd/intervals@latest
-intervals --version
-```
-
-If you are working from a local checkout:
-
-```bash
-go generate ./...
-go build ./cmd/intervals
-./intervals --version
 ```
 
 ## Status
 
-This repo targets a narrow v1 surface:
-- `auth status`
-- `whoami`
 - athlete info and training plan
 - activities list/search/upload and activity detail helpers
 - events list/get/create/upsert/delete
@@ -91,6 +60,7 @@ intervals whoami --format json
 ## For Agents
 
 Recommended calling pattern:
+
 - prefer `--format json`
 - use absolute dates like `2026-03-16`, not relative values like `tomorrow`
 - use `--file -` or a JSON file for complex writes
@@ -112,6 +82,7 @@ intervals wellness put --date 2026-03-12 --file wellness.json
 ## Development
 
 Requirements:
+
 - Go 1.26+
 
 The pinned OpenAPI source lives at [`api/openapi-spec.json`](api/openapi-spec.json).
