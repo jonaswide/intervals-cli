@@ -203,6 +203,47 @@ func TestActivitiesSearchRequiresOldestWhenNewestIsSet(t *testing.T) {
 	}
 }
 
+func TestHelpForEventsCreateDoesNotInitService(t *testing.T) {
+	var stdout bytes.Buffer
+	rt := &runtime{
+		ctx:    context.Background(),
+		stdout: &stdout,
+		stderr: io.Discard,
+		stdin:  strings.NewReader(""),
+		newClient: func(cfg app.Config) (service, error) {
+			t.Fatal("service should not be initialized")
+			return nil, nil
+		},
+	}
+	if err := rt.run([]string{"events", "create", "--help"}); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "Creates a calendar event") || !strings.Contains(out, "--file <path|->") {
+		t.Fatalf("expected events create help, got %q", out)
+	}
+}
+
+func TestRootHelpMentionsEventsVsWorkouts(t *testing.T) {
+	var stdout bytes.Buffer
+	rt := &runtime{
+		ctx:    context.Background(),
+		stdout: &stdout,
+		stderr: io.Discard,
+		stdin:  strings.NewReader(""),
+	}
+	if err := rt.run([]string{"help"}); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "use events create/upsert for scheduled calendar items") {
+		t.Fatalf("expected root help to mention events usage, got %q", out)
+	}
+	if !strings.Contains(out, "use workouts create for reusable library items") {
+		t.Fatalf("expected root help to mention workouts usage, got %q", out)
+	}
+}
+
 func TestBestEffortsValidationHappensBeforeServiceInit(t *testing.T) {
 	rt := &runtime{
 		ctx:    context.Background(),

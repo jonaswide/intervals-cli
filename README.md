@@ -63,8 +63,10 @@ Recommended calling pattern:
 
 - prefer `--format json`
 - use absolute dates like `2026-03-16`, not relative values like `tomorrow`
-- use `--file -` or a JSON file for complex writes
+- use `--file -` or a temp file for complex writes
 - treat stdout as result data and stderr as diagnostics
+- see [docs/agents.md](docs/agents.md) for write workflows and JSON examples
+- a repo-contained skill is available at [skills/intervals-cli/SKILL.md](skills/intervals-cli/SKILL.md)
 
 Examples:
 
@@ -74,10 +76,20 @@ intervals whoami --format json
 intervals activities list --oldest 2026-03-01 --newest 2026-03-12
 intervals activities search --query "#threshold" --oldest 2026-03-01 --newest 2026-03-12 --format json
 intervals activity streams 123456 --types watts,hr
-intervals events create --file event.json
+printf '%s\n' '{"category":"WORKOUT","start_date_local":"2026-03-16T00:00:00","type":"Run","name":"10km @ 5:00/km","moving_time":3000,"description":"- 10km 5:00/km Pace"}' | intervals events create --file - --format json
 intervals workout download 123 --format zwo --output workout.zwo
-intervals wellness put --date 2026-03-12 --file wellness.json
+printf '%s\n' '{"restingHR":48,"weight":78.2,"sleepSecs":27000}' | intervals wellness put --date 2026-03-12 --file - --format json
 ```
+
+Write examples:
+
+- event create: [`examples/events/create-10km-run.json`](examples/events/create-10km-run.json)
+- event create, intervals: [`examples/events/create-interval-run.json`](examples/events/create-interval-run.json)
+- event upsert: [`examples/events/upsert-10km-run.json`](examples/events/upsert-10km-run.json)
+- event upsert, intervals: [`examples/events/upsert-interval-run.json`](examples/events/upsert-interval-run.json)
+- workout create: [`examples/workouts/create-simple-run.json`](examples/workouts/create-simple-run.json)
+- workout create, intervals: [`examples/workouts/create-interval-run.json`](examples/workouts/create-interval-run.json)
+- wellness put: [`examples/wellness/put-day.json`](examples/wellness/put-day.json)
 
 ## Development
 
