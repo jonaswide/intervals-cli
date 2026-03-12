@@ -45,8 +45,10 @@ type ActivityListOptions struct {
 }
 
 type ActivitySearchOptions struct {
-	Query string
-	Limit *int32
+	Query  string
+	Limit  *int32
+	Oldest *string
+	Newest *string
 }
 
 type ActivityUploadOptions struct {
@@ -189,6 +191,22 @@ func (c *Client) ActivitiesList(ctx context.Context, opts ActivityListOptions) (
 }
 
 func (c *Client) ActivitiesSearch(ctx context.Context, opts ActivitySearchOptions) (any, error) {
+	if opts.Oldest != nil || opts.Newest != nil {
+		oldest := ""
+		if opts.Oldest != nil {
+			oldest = *opts.Oldest
+		}
+		listOpts := ActivityListOptions{
+			Oldest: oldest,
+			Newest: opts.Newest,
+			Limit:  opts.Limit,
+		}
+		activities, err := c.ActivitiesList(ctx, listOpts)
+		if err != nil {
+			return nil, err
+		}
+		return filterActivitySearchResults(activities, opts.Query, opts.Limit), nil
+	}
 	params := &gen.SearchForActivitiesParams{Q: opts.Query, Limit: opts.Limit}
 	resp, err := c.api.SearchForActivitiesWithResponse(ctx, athleteID, params)
 	if err != nil {
@@ -471,6 +489,77 @@ func containsStatus(status int, okStatuses []int) bool {
 		}
 	}
 	return false
+}
+
+func filterActivitySearchResults(value any, query string, limit *int32) []any {
+	activities, ok := value.([]any)
+	if !ok {
+		return []any{}
+	}
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return activities
+	}
+	isTagQuery := strings.HasPrefix(query, "#")
+	lowerQuery := strings.ToLower(query)
+	results := make([]any, 0, len(activities))
+	for _, item := range activities {
+		activity, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if isTagQuery {
+			if !hasExactTag(activity["tags"], query) {
+				continue
+			}
+		} else {
+			name := strings.ToLower(asString(activity["name"]))
+			if !strings.Contains(name, lowerQuery) {
+				continue
+			}
+		}
+		results = append(results, projectActivitySearchResult(activity))
+		if limit != nil && int32(len(results)) >= *limit {
+			break
+		}
+	}
+	return results
+}
+
+func hasExactTag(raw any, tag string) bool {
+	values, ok := raw.([]any)
+	if !ok {
+		return false
+	}
+	for _, value := range values {
+		if asString(value) == tag {
+			return true
+		}
+	}
+	return false
+}
+
+func projectActivitySearchResult(activity map[string]any) map[string]any {
+	result := map[string]any{}
+	for _, key := range []string{"id", "name", "start_date_local", "type", "race", "distance", "moving_time", "tags", "description"} {
+		if value, ok := activity[key]; ok {
+			result[key] = value
+		}
+	}
+	return result
+}
+
+func asString(v any) string {
+	switch x := v.(type) {
+	case string:
+		return x
+	case fmt.Stringer:
+		return x.String()
+	case float64:
+		return strconv.FormatFloat(x, 'f', -1, 64)
+	default:
+		return ""
+	}
 }
 
 func buildMultipartFile(fieldName, path string) ([]byte, string, error) {

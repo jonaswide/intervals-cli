@@ -114,6 +114,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 }
 
 func (r *runtime) run(args []string) error {
+	args = reorderGlobalFlags(args)
 	global := flag.NewFlagSet("intervals", flag.ContinueOnError)
 	global.SetOutput(io.Discard)
 	rawFormat := global.String("format", "", "")
@@ -166,6 +167,38 @@ func (r *runtime) run(args []string) error {
 	default:
 		return usageErr(fmt.Errorf("unknown command %q", rest[0]))
 	}
+}
+
+func reorderGlobalFlags(args []string) []string {
+	if len(args) == 0 {
+		return args
+	}
+	var globals []string
+	var rest []string
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" {
+			rest = append(rest, args[i:]...)
+			break
+		}
+		switch {
+		case arg == "--verbose" || arg == "--version":
+			globals = append(globals, arg)
+		case arg == "--format" || arg == "--base-url" || arg == "--timeout":
+			globals = append(globals, arg)
+			if i+1 < len(args) {
+				globals = append(globals, args[i+1])
+				i++
+			}
+		case strings.HasPrefix(arg, "--format="),
+			strings.HasPrefix(arg, "--base-url="),
+			strings.HasPrefix(arg, "--timeout="):
+			globals = append(globals, arg)
+		default:
+			rest = append(rest, arg)
+		}
+	}
+	return append(globals, rest...)
 }
 
 func (r *runtime) runAuth(args []string) error {
@@ -244,14 +277,31 @@ func (r *runtime) runActivities(args []string) error {
 	case "search":
 		fs := newFlagSet("activities search")
 		query := fs.String("query", "", "")
+		oldest := fs.String("oldest", "", "")
+		newest := fs.String("newest", "", "")
 		limit := fs.Int("limit", 0, "")
 		if err := fs.Parse(args[1:]); err != nil {
 			return usageErr(err)
 		}
 		if fs.NArg() != 0 || *query == "" {
-			return usageErr(fmt.Errorf("usage: intervals activities search --query <q> [--limit N]"))
+			return usageErr(fmt.Errorf("usage: intervals activities search --query <q> [--oldest <ISO date|datetime>] [--newest <ISO date|datetime>] [--limit N]"))
+		}
+		if *newest != "" && *oldest == "" {
+			return usageErr(fmt.Errorf("--oldest is required when --newest is set"))
 		}
 		opts := app.ActivitySearchOptions{Query: *query}
+		if *oldest != "" {
+			if err := validateDateTime(*oldest); err != nil {
+				return usageErr(fmt.Errorf("--oldest: %w", err))
+			}
+			opts.Oldest = oldest
+		}
+		if *newest != "" {
+			if err := validateDateTime(*newest); err != nil {
+				return usageErr(fmt.Errorf("--newest: %w", err))
+			}
+			opts.Newest = newest
+		}
 		if *limit > 0 {
 			v := int32(*limit)
 			opts.Limit = &v

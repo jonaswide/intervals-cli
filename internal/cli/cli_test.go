@@ -14,7 +14,8 @@ import (
 )
 
 type fakeService struct {
-	whoami func(context.Context) (any, error)
+	whoami           func(context.Context) (any, error)
+	activitiesSearch func(context.Context, app.ActivitySearchOptions) (any, error)
 }
 
 func (f fakeService) AuthStatus(context.Context) (any, error) {
@@ -33,7 +34,10 @@ func (f fakeService) AthleteTrainingPlan(context.Context) (any, error) {
 func (f fakeService) ActivitiesList(context.Context, app.ActivityListOptions) (any, error) {
 	return []any{}, nil
 }
-func (f fakeService) ActivitiesSearch(context.Context, app.ActivitySearchOptions) (any, error) {
+func (f fakeService) ActivitiesSearch(ctx context.Context, opts app.ActivitySearchOptions) (any, error) {
+	if f.activitiesSearch != nil {
+		return f.activitiesSearch(ctx, opts)
+	}
 	return []any{}, nil
 }
 func (f fakeService) ActivitiesUpload(context.Context, app.ActivityUploadOptions) (any, error) {
@@ -133,6 +137,69 @@ func TestExplicitTableFormat(t *testing.T) {
 	out := stdout.String()
 	if !strings.Contains(out, "name") || !strings.Contains(out, "Jonas") {
 		t.Fatalf("expected table output, got %q", out)
+	}
+}
+
+func TestGlobalFormatFlagWorksAfterCommand(t *testing.T) {
+	var stdout bytes.Buffer
+	rt := &runtime{
+		ctx:    context.Background(),
+		stdout: &stdout,
+		stderr: io.Discard,
+		stdin:  strings.NewReader(""),
+		newClient: func(cfg app.Config) (service, error) {
+			return fakeService{}, nil
+		},
+	}
+	if err := rt.run([]string{"athlete", "get", "--format", "json"}); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if !strings.Contains(stdout.String(), "\"name\": \"Jonas\"") {
+		t.Fatalf("expected json output, got %q", stdout.String())
+	}
+}
+
+func TestActivitiesSearchAcceptsDateWindow(t *testing.T) {
+	var got app.ActivitySearchOptions
+	rt := &runtime{
+		ctx:    context.Background(),
+		stdout: io.Discard,
+		stderr: io.Discard,
+		stdin:  strings.NewReader(""),
+		newClient: func(cfg app.Config) (service, error) {
+			return fakeService{
+				activitiesSearch: func(_ context.Context, opts app.ActivitySearchOptions) (any, error) {
+					got = opts
+					return []any{}, nil
+				},
+			}, nil
+		},
+	}
+	if err := rt.run([]string{"activities", "search", "--query", "tempo", "--oldest", "2026-03-01", "--newest", "2026-03-12"}); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if got.Oldest == nil || *got.Oldest != "2026-03-01" {
+		t.Fatalf("expected oldest to be forwarded, got %+v", got)
+	}
+	if got.Newest == nil || *got.Newest != "2026-03-12" {
+		t.Fatalf("expected newest to be forwarded, got %+v", got)
+	}
+}
+
+func TestActivitiesSearchRequiresOldestWhenNewestIsSet(t *testing.T) {
+	rt := &runtime{
+		ctx:    context.Background(),
+		stdout: io.Discard,
+		stderr: io.Discard,
+		stdin:  strings.NewReader(""),
+		newClient: func(cfg app.Config) (service, error) {
+			t.Fatal("service should not be initialized")
+			return nil, nil
+		},
+	}
+	err := rt.run([]string{"activities", "search", "--query", "tempo", "--newest", "2026-03-12"})
+	if ExitCode(err) != 2 {
+		t.Fatalf("expected usage error, got %v", err)
 	}
 }
 
